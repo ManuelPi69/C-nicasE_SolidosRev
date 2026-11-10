@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#07111f" />
+  <title>Laboratório 3D — Seções Cônicas e Sólidos de Revolução</title>
+  <script src="https://aframe.io/releases/1.8.0/aframe.min.js"></script>
+  <style>
+    :root {
+      --bg: #07111f;
+      --panel: rgba(8, 20, 36, .92);
+      --panel2: rgba(14, 31, 51, .92);
+      --line: rgba(141, 190, 220, .20);
+      --text: #eff8ff;
+      --muted: #a9bfd1;
+      --cyan: #53e4ff;
+      --mint: #53f0c3;
+      --gold: #ffcc73;
+      --pink: #ff72b6;
+      --blue: #79aaff;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    a-scene { position: fixed !important; inset: 0; width: 100%; height: 100%; z-index: 0; }
+    .hud { position: fixed; z-index: 5; inset: 0; pointer-events: none; }
+    .topbar { position: absolute; inset: 0 0 auto 0; height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; background: linear-gradient(180deg, rgba(4,12,22,.94), rgba(4,12,22,.45)); border-bottom: 1px solid rgba(130,190,225,.15); pointer-events: auto; }
+    .brand { display:flex; align-items:center; gap:12px; min-width:0; }
+    .brand-mark { width:34px; height:34px; border-radius:11px; display:grid; place-items:center; color:#05202c; font-weight:900; background:linear-gradient(145deg,var(--cyan),var(--mint)); box-shadow:0 0 22px rgba(83,228,255,.28); }
+    .brand h1 { font-size:14px; line-height:1.15; margin:0; letter-spacing:.02em; }
+    .brand p { margin:3px 0 0; color:var(--muted); font-size:10px; letter-spacing:.13em; text-transform:uppercase; }
+    .top-actions { display:flex; gap:8px; align-items:center; }
+    button, select { font:inherit; }
+    .btn { border:1px solid var(--line); border-radius:10px; padding:9px 12px; color:var(--text); background:rgba(17,38,59,.88); cursor:pointer; transition:.18s ease; font-size:12px; font-weight:650; }
+    .btn:hover { border-color:rgba(83,228,255,.65); background:rgba(29,63,88,.96); transform:translateY(-1px); }
+    .btn:active { transform:translateY(0); }
+    .btn.primary { color:#06202c; background:linear-gradient(135deg,var(--cyan),var(--mint)); border:0; }
+    .btn.ghost { background:rgba(6,17,30,.58); }
+    .btn.active { border-color:var(--cyan); box-shadow:0 0 0 1px rgba(83,228,255,.22) inset; color:var(--cyan); }
+    .main-panel { pointer-events:auto; position:absolute; top:78px; left:16px; bottom:16px; width:340px; max-width:calc(100vw - 32px); overflow:auto; padding:14px; border:1px solid var(--line); border-radius:17px; background:var(--panel); backdrop-filter:blur(18px); box-shadow:0 18px 60px rgba(0,0,0,.35); scrollbar-width:thin; scrollbar-color:#31516a transparent; }
+    .eyebrow { color:var(--cyan); text-transform:uppercase; letter-spacing:.14em; font-size:9px; font-weight:800; }
+    .section-title { margin:5px 0 8px; font-size:17px; letter-spacing:-.02em; }
+    .intro { margin:0 0 12px; color:var(--muted); font-size:11px; line-height:1.45; }
+    .status-row { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:9px 0 10px; }
+    .pill { display:inline-flex; align-items:center; gap:6px; padding:5px 8px; border-radius:999px; background:rgba(83,228,255,.10); color:var(--cyan); border:1px solid rgba(83,228,255,.22); font-size:10px; font-weight:750; }
+    .progress { height:5px; border-radius:9px; overflow:hidden; background:rgba(255,255,255,.09); margin:8px 0 12px; }
+    .progress > span { display:block; height:100%; width:0%; background:linear-gradient(90deg,var(--cyan),var(--mint)); transition:width .3s ease; }
+    .trail { display:grid; gap:6px; }
+    .trail-item { border:1px solid rgba(141,190,220,.13); background:rgba(255,255,255,.025); border-radius:11px; padding:8px 9px; display:grid; grid-template-columns:24px 1fr auto; gap:8px; align-items:center; cursor:pointer; text-align:left; color:var(--text); width:100%; }
+    .trail-item.current { border-color:rgba(83,228,255,.52); background:rgba(83,228,255,.075); }
+    .trail-item.done { border-color:rgba(83,240,195,.35); }
+    .trail-num { width:23px; height:23px; border-radius:7px; display:grid; place-items:center; background:rgba(255,255,255,.08); color:var(--muted); font-size:10px; font-weight:800; }
+    .trail-item.done .trail-num { background:rgba(83,240,195,.16); color:var(--mint); }
+    .trail-name { font-size:11px; font-weight:750; }
+    .trail-desc { margin-top:2px; font-size:9px; color:var(--muted); line-height:1.3; }
+    .trail-time { color:#8faabd; font-size:9px; white-space:nowrap; }
+    .divider { height:1px; background:var(--line); margin:13px 0; }
+    .control-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+    .control-head h3 { margin:0; font-size:12px; }
+    .small { color:var(--muted); font-size:10px; }
+    .angle-readout { font-variant-numeric:tabular-nums; color:var(--cyan); font-size:20px; font-weight:850; }
+    input[type=range] { width:100%; accent-color:var(--cyan); cursor:pointer; margin:8px 0 3px; }
+    .range-labels { display:flex; justify-content:space-between; color:#7793a8; font-size:9px; }
+    .quick-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; margin-top:9px; }
+    .quick-grid .btn { padding:8px 4px; font-size:9px; }
+    .offset-row { display:flex; gap:8px; align-items:center; margin-top:12px; }
+    .offset-row input { flex:1; }
+    .offset-value { min-width:38px; text-align:right; font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; }
+    .classification { border:1px solid rgba(83,228,255,.24); border-radius:12px; padding:10px; margin-top:10px; background:linear-gradient(130deg,rgba(83,228,255,.075),rgba(83,240,195,.035)); }
+    .class-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .class-name { font-size:16px; font-weight:850; letter-spacing:-.02em; }
+    .class-tag { font-size:9px; color:var(--cyan); border:1px solid rgba(83,228,255,.24); border-radius:7px; padding:4px 6px; }
+    .class-copy { color:var(--muted); font-size:10px; line-height:1.45; margin:6px 0 0; }
+    .formula { margin-top:8px; padding:7px 8px; border-radius:8px; background:rgba(0,0,0,.22); color:#d8efff; font:11px ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .view-grid, .solid-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+    .view-grid .btn, .solid-grid .btn { padding:8px 5px; font-size:10px; }
+    .cta-row { display:flex; gap:7px; margin-top:10px; }
+    .cta-row .btn { flex:1; }
+    .lesson-box { background:rgba(255,255,255,.035); padding:10px; border-radius:11px; border:1px solid rgba(141,190,220,.13); }
+    .lesson-box h4 { margin:0 0 5px; font-size:11px; }
+    .lesson-box p { margin:0; font-size:10px; line-height:1.45; color:var(--muted); }
+    .bottom-hint { position:absolute; right:16px; bottom:15px; max-width:340px; pointer-events:none; padding:10px 12px; border:1px solid rgba(141,190,220,.18); border-radius:12px; background:rgba(5,15,27,.72); backdrop-filter:blur(10px); color:#c3d5e3; font-size:10px; line-height:1.4; }
+    .bottom-hint b { color:var(--cyan); }
+    .modal { display:none; position:fixed; z-index:20; inset:0; padding:20px; align-items:center; justify-content:center; background:rgba(1,7,14,.82); backdrop-filter:blur(12px); pointer-events:auto; }
+    .modal.open { display:flex; }
+    .modal-card { width:min(700px,100%); max-height:90vh; overflow:auto; border:1px solid rgba(120,191,226,.28); border-radius:18px; background:#0b1a2b; padding:20px; box-shadow:0 25px 90px rgba(0,0,0,.5); }
+    .modal-card h2 { margin:4px 0 7px; font-size:21px; }
+    .modal-card > p { color:var(--muted); font-size:12px; line-height:1.5; }
+    .question { margin:14px 0; padding:12px; border:1px solid rgba(141,190,220,.16); border-radius:12px; background:rgba(255,255,255,.025); }
+    .question h3 { margin:0 0 9px; font-size:12px; }
+    .option { display:flex; align-items:flex-start; gap:8px; margin:7px 0; color:#c6d8e6; font-size:11px; line-height:1.35; cursor:pointer; }
+    .option input { accent-color:var(--cyan); margin-top:1px; }
+    .quiz-result { display:none; margin-top:14px; border-radius:12px; padding:13px; background:rgba(83,240,195,.08); border:1px solid rgba(83,240,195,.25); }
+    .quiz-result strong { color:var(--mint); font-size:18px; }
+    .quiz-result p { color:#c2d9da; font-size:11px; line-height:1.45; }
+    .toast { position:fixed; z-index:30; left:50%; bottom:22px; transform:translate(-50%,20px); opacity:0; transition:.25s; background:#10283c; color:#effaff; border:1px solid rgba(83,228,255,.35); border-radius:999px; padding:9px 14px; font-size:11px; pointer-events:none; box-shadow:0 10px 30px rgba(0,0,0,.3); }
+    .toast.show { opacity:1; transform:translate(-50%,0); }
+    .mobile-toggle { display:none; }
+    @media (max-width:720px) {
+      .topbar { height:58px; padding:0 10px; }
+      .brand h1 { font-size:11px; }
+      .brand p { font-size:8px; }
+      .brand-mark { width:30px;height:30px; }
+      .top-actions .btn { padding:8px 9px; font-size:10px; }
+      .main-panel { top:66px; left:8px; bottom:8px; width:min(325px,calc(100vw - 16px)); transform:translateX(0); transition:transform .25s; }
+      .main-panel.collapsed { transform:translateX(calc(-100% - 15px)); }
+      .mobile-toggle { display:block; position:absolute; top:72px; left:8px; z-index:7; pointer-events:auto; }
+      .bottom-hint { right:8px; bottom:8px; max-width:calc(100vw - 355px); font-size:9px; }
+      .bottom-hint.hide-mobile { display:none; }
+    }
+    @media (max-width:410px) { .bottom-hint { display:none; } .top-actions .optional { display:none; } }
+  </style>
+</head>
+<body>
+  <a-scene embedded renderer="antialias: true; colorManagement: true; physicallyCorrectLights: true" background="color: #07111f" vr-mode-ui="enabled: true" webxr="optionalFeatures: local-floor, bounded-floor">
+    <a-assets>
+      <a-mixin id="glass" material="color: #55cce8; transparent: true; opacity: 0.17; roughness: 0.12; metalness: 0.12; side: double"></a-mixin>
+    </a-assets>
+    <a-entity light="type: ambient; color: #b7d5ed; intensity: 0.66"></a-entity>
+    <a-entity light="type: directional; color: #e7f8ff; intensity: 1.05" position="-3 6 4"></a-entity>
+    <a-entity light="type: point; color: #39dffc; intensity: 1.6; distance: 9" position="2 2 1"></a-entity>
+    <a-entity id="floorGrid" grid-floor="size: 16; divisions: 32" position="0 0 0"></a-entity>
+    <a-entity id="modelRoot" position="0 1.55 0">
+      <a-entity id="coneGroup">
+        <a-cone radius-bottom="1.55" radius-top="0" height="2.6" position="0 -1.3 0" mixin="glass" material="color:#48cde9; opacity:0.16; side:double"></a-cone>
+        <a-cone radius-bottom="1.55" radius-top="0" height="2.6" position="0 1.3 0" rotation="180 0 0" mixin="glass" material="color:#4cb7e3; opacity:0.16; side:double"></a-cone>
+        <a-torus radius="1.55" radius-tubular="0.012" position="0 -2.6 0" rotation="90 0 0" material="color:#4aaed0; opacity:.78; transparent:true"></a-torus>
+        <a-torus radius="1.55" radius-tubular="0.012" position="0 2.6 0" rotation="90 0 0" material="color:#4aaed0; opacity:.78; transparent:true"></a-torus>
+        <a-entity line="start: 0 -2.9 0; end: 0 2.9 0; color: #86d7f1; opacity: .8"></a-entity>
+        <a-text value="EIXO DE REVOLUÇÃO" position="0.08 2.76 0" rotation="0 0 0" color="#b4eaff" width="3.6" align="left" scale="0.52 0.52 0.52"></a-text>
+        <a-text value="CONE DUPLO" position="1.55 2.25 0" rotation="0 0 0" color="#8cecff" width="2.4" align="left" scale="0.65 0.65 0.65"></a-text>
+        <a-entity id="cutPlane" class="clickable" ui-action="action: grab" plane-surface="angle: 0; offset: 1.05"></a-entity>
+        <a-entity id="cutCurve" conic-curve="angle: 0; offset: 1.05"></a-entity>
+        <a-entity id="cutLabel" position="1.8 1.0 0.2">
+          <a-sphere radius="0.045" color="#53e4ff" material="emissive:#53e4ff; emissiveIntensity:1.6"></a-sphere>
+          <a-text id="curveLabel3d" value="CIRCUNFERÊNCIA" position="0.1 0.03 0" color="#b9f7ff" width="2.4" scale="0.62 0.62 0.62"></a-text>
+        </a-entity>
+      </a-entity>
+      <a-entity id="cylinderSolid" visible="false">
+        <a-cylinder radius="1.3" height="2.8" position="0 0 0" material="color:#55dbc4; transparent:true; opacity:.22; roughness:.15; metalness:.15; side:double"></a-cylinder>
+        <a-torus radius="1.3" radius-tubular="0.016" position="0 1.4 0" rotation="90 0 0" color="#62f0cd"></a-torus>
+        <a-torus radius="1.3" radius-tubular="0.016" position="0 -1.4 0" rotation="90 0 0" color="#62f0cd"></a-torus>
+        <a-entity line="start:0 -1.8 0; end:0 1.8 0; color:#c4fff0"></a-entity>
+        <a-text value="CILINDRO · RETÂNGULO EM ROTAÇÃO" position="-1.45 1.9 0" color="#aaffeb" width="4" scale="0.65 0.65 0.65"></a-text>
+      </a-entity>
+      <a-entity id="sphereSolid" visible="false">
+        <a-sphere radius="1.38" material="color:#8c9cff; transparent:true; opacity:.25; roughness:.12; metalness:.2; side:double"></a-sphere>
+        <a-torus radius="1.38" radius-tubular="0.012" rotation="90 0 0" color="#aabaff"></a-torus>
+        <a-torus radius="1.38" radius-tubular="0.012" rotation="0 0 0" color="#aabaff"></a-torus>
+        <a-entity line="start:0 -1.8 0; end:0 1.8 0; color:#c9d4ff"></a-entity>
+        <a-text value="ESFERA · SEMICÍRCULO EM ROTAÇÃO" position="-1.55 1.9 0" color="#c8d1ff" width="4" scale="0.65 0.65 0.65"></a-text>
+      </a-entity>
+    </a-entity>
+    <a-entity id="netRoot" net-display="solid: cone" visible="false" position="0 1.55 -1.7">
+      <a-plane width="5.6" height="3.4" material="color:#0b2238; transparent:true; opacity:.94; side:double; roughness:.8"></a-plane>
+      <a-text id="netHeading" value="PLANIFICAÇÃO DO CONE" position="-2.55 1.35 0.03" color="#67eaff" width="5.2" scale="0.8 0.8 0.8"></a-text>
+      <a-text id="netNote" value="A superfície lateral forma um setor circular; a base é um círculo." position="-2.55 -1.35 0.03" color="#c6d9e8" width="5.2" scale="0.55 0.55 0.55"></a-text>
+    </a-entity>
+    <!-- Console 3D para uso com os controladores do headset -->
+    <a-entity id="vrConsole" position="-2.55 1.55 0.75">
+      <a-plane width="2.3" height="3.55" material="color:#081a2b; transparent:true; opacity:.92; side:double; roughness:.8"></a-plane>
+      <a-text value="MESA DE CONTROLE" position="-1.02 1.52 0.02" color="#63e6ff" width="2.1" scale="0.64 0.64 0.64"></a-text>
+      <a-text value="PLANO DE CORTE" position="-1.02 1.22 0.02" color="#adc6d8" width="2" scale="0.48 0.48 0.48"></a-text>
+      <a-entity class="clickable" ui-action="action: angleDown" geometry="primitive: plane; width: .94; height: .3" position="-.51 .87 .035" material="color:#173953; emissive:#092235" text="value: − INCLINAÇÃO; align:center; color:#effaff; width:2.5; zOffset:.02" ></a-entity>
+      <a-entity class="clickable" ui-action="action: angleUp" geometry="primitive: plane; width: .94; height: .3" position=".51 .87 .035" material="color:#174c5b; emissive:#092235" text="value: + INCLINAÇÃO; align:center; color:#effaff; width:2.5; zOffset:.02"></a-entity>
+      <a-entity class="clickable" ui-action="action: offsetDown" geometry="primitive: plane; width: .94; height: .3" position="-.51 .49 .035" material="color:#173953" text="value: PLANO ↓; align:center; color:#effaff; width:2.5; zOffset:.02"></a-entity>
+      <a-entity class="clickable" ui-action="action: offsetUp" geometry="primitive: plane; width: .94; height: .3" position=".51 .49 .035" material="color:#173953" text="value: PLANO ↑; align:center; color:#effaff; width:2.5; zOffset:.02"></a-entity>
+      <a-text value="SEÇÕES CÔNICAS" position="-1.02 .17 .02" color="#adc6d8" width="2" scale="0.48 0.48 0.48"></a-text>
+      <a-entity class="clickable" ui-action="action: circle" geometry="primitive: plane; width: .94; height: .3" position="-.51 -.18 .035" material="color:#16475a" text="value: CIRCUNF.; align:center; color:#effaff; width:2.6; zOffset:.02"></a-entity>
+      <a-entity class="clickable" ui-action="action: ellipse" geometry="primitive: plane; width: .94; height: .3" position=".51 -.18 .035" material="color:#16475a" text="value: ELIPSE; align:center; color:#effaff; width:2.6; zOffset:.02"></a-entity>
+      <a-entity class="clickable" ui-action="action: parabola" geometry="primitive: plane; width: .94; height: .3" position="-.51 -.56 .035" material="color:#59421d" text="value: PARÁBOLA; align:center; color:#fff4da; width:2.6; zOffset:.02"></a-entity>
+      <a-entity class="clickable" ui-action="action: hyperbola" geometry="primitive: plane; width: .94; height: .3" position=".51 -.56 .035" material="color:#552541" text="value: HIPÉRBOLE; align:center; color:#ffe6f3; width:2.6; zOffset:.02"></a-entity>
+      <a-text value="PONTOS DE VISTA" position="-1.02 -.9 .02" color="#adc6d8" width="2" scale="0.48 0.48 0.48"></a-text>
+      <a-entity class="clickable" ui-action="action: viewInside" geometry="primitive: plane; width: .94; height: .3" position="-.51 -1.24 .035" material="color:#16475a" text="value: DE DENTRO; align:center; color:#effaff; width:2.6; zOffset:.02"></a-entity>
+      <a-entity class="clickable" ui-action="action: viewTop" geometry="primitive: plane; width: .94; height: .3" position=".51 -1.24 .035" material="color:#16475a" text="value: DE CIMA; align:center; color:#effaff; width:2.6; zOffset:.02"></a-entity>
+      <a-entity class="clickable" ui-action="action: viewOutside" geometry="primitive: plane; width: .94; height: .3" position="-.51 -1.62 .035" material="color:#173953" text="value: EXTERIOR; align:center; color:#effaff; width:2.6; zOffset:.02"></a-entity>
+      <a-entity class="clickable" ui-action="action: plan" geometry="primitive: plane; width: .94; height: .3" position=".51 -1.62 .035" material="color:#174c5b" text="value: PLANIFICAR; align:center; color:#effaff; width:2.6; zOffset:.02"></a-entity>
+      <a-text value="APONTE À LÂMINA E ACIONE O GATILHO. JOYSTICK ESQ.: INCLINAÇÃO / ALTURA." position="-1.02 -1.98 .02" color="#90b6ca" width="2.1" scale="0.38 0.38 0.38"></a-text>
+    </a-entity>
+    <a-entity id="viewRig">
+      <a-camera id="mainCamera" position="0 1.6 6" look-controls="pointerLockEnabled: false" wasd-controls="enabled: false">
+        <a-entity cursor="rayOrigin: mouse; fuse: false" raycaster="objects: .clickable; far: 20" position="0 0 -1" geometry="primitive: ring; radiusInner: 0.008; radiusOuter: 0.013" material="color: #8cefff; shader: flat"></a-entity>
+      </a-camera>
+    </a-entity>
+    <a-entity laser-controls="hand: left" raycaster="objects: .clickable; far: 12" line="color:#71eaff; opacity:.65" cursor="rayOrigin: entity; fuse:false" plane-controller-adjust></a-entity>
+    <a-entity laser-controls="hand: right" raycaster="objects: .clickable; far: 12" line="color:#71eaff; opacity:.65" cursor="rayOrigin: entity; fuse:false"></a-entity>
+  </a-scene>
+
+  <div class="hud">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">∩</div>
+        <div><h1>SEÇÕES CÔNICAS & SÓLIDOS DE REVOLUÇÃO</h1><p>Laboratório 3D · Geometria espacial</p></div>
+      </div>
+      <div class="top-actions">
+        <button class="btn ghost optional" id="resetBtn">↺ Reiniciar</button>
+        <button class="btn primary" id="vrBtn">◉ Entrar em VR</button>
+      </div>
+    </header>
+    <button class="btn mobile-toggle" id="panelToggle">☰ Aula</button>
+    <aside class="main-panel" id="mainPanel">
+      <div class="eyebrow">Trilha de aprendizagem · 40 min</div>
+      <h2 class="section-title">Da superfície à curva</h2>
+      <p class="intro">Manipule o plano de corte e descubra como a inclinação transforma a interseção com o cone duplo. Observe, teste hipóteses e registre o que muda.</p>
+      <div class="status-row"><span class="pill" id="stagePill">ETAPA 1 · EXPLORAR</span><span class="small" id="progressText">0 de 5 concluídas</span></div>
+      <div class="progress"><span id="progressBar"></span></div>
+      <div class="trail" id="trailList">
+        <button class="trail-item current" data-stage="0"><span class="trail-num">1</span><span><span class="trail-name">Orientação e observação</span><span class="trail-desc">Veja o cone e relacione com o feixe de luz.</span></span><span class="trail-time">4 min</span></button>
+        <button class="trail-item" data-stage="1"><span class="trail-num">2</span><span><span class="trail-name">Explore os cortes</span><span class="trail-desc">Gire a lâmina e identifique as interseções.</span></span><span class="trail-time">10 min</span></button>
+        <button class="trail-item" data-stage="2"><span class="trail-num">3</span><span><span class="trail-name">Transição das cônicas</span><span class="trail-desc">Compare elipse, parábola e hipérbole.</span></span><span class="trail-time">10 min</span></button>
+        <button class="trail-item" data-stage="3"><span class="trail-num">4</span><span><span class="trail-name">Sólidos e planificações</span><span class="trail-desc">Investigue cone, cilindro e esfera.</span></span><span class="trail-time">8 min</span></button>
+        <button class="trail-item" data-stage="4"><span class="trail-num">5</span><span><span class="trail-name">Missão final · Quiz</span><span class="trail-desc">Classifique e sistematize o que descobriu.</span></span><span class="trail-time">8 min</span></button>
+      </div>
+      <div class="cta-row"><button class="btn" id="completeStageBtn">Concluir etapa ✓</button><button class="btn primary" id="nextStageBtn">Próxima etapa →</button></div>
+      <div class="divider"></div>
+      <div class="control-head"><h3>Manipular plano de corte</h3><span class="angle-readout" id="angleValue">0°</span></div>
+      <input id="angleRange" type="range" min="0" max="80" step="0.5" value="0" aria-label="Inclinação do plano em graus" />
+      <div class="range-labels"><span>0° · horizontal</span><span>80° · inclinado</span></div>
+      <div class="quick-grid">
+        <button class="btn active" data-preset="circle">Círculo</button><button class="btn" data-preset="ellipse">Elipse</button><button class="btn" data-preset="parabola">Parábola</button><button class="btn" data-preset="hyperbola">Hipérbole</button>
+      </div>
+      <div class="offset-row"><span class="small">Altura do plano</span><input id="offsetRange" type="range" min="0.55" max="1.65" step="0.05" value="1.05" aria-label="Altura do plano"/><span class="offset-value" id="offsetValue">1,05</span></div>
+      <div class="classification" aria-live="polite">
+        <div class="class-row"><span class="class-name" id="className">Circunferência</span><span class="class-tag" id="classTag">CORTE 01</span></div>
+        <p class="class-copy" id="classCopy">Plano perpendicular ao eixo do cone: a interseção é uma circunferência.</p>
+        <div class="formula" id="classFormula">α = 0° · plano horizontal</div>
+      </div>
+      <div class="lesson-box" style="margin-top:10px">
+        <h4 id="equationTitle">Pós-VR · forma algébrica</h4>
+        <p id="equationText" style="font:11px ui-monospace, SFMono-Regular, Consolas, monospace;color:#e1f5ff;margin:6px 0">x² + y² = r²</p>
+        <p id="equationMeaning">Forma canônica de uma circunferência com centro na origem. O centro e a orientação podem mudar por translação ou rotação.</p>
+      </div>
+      <div class="divider"></div>
+      <div class="control-head"><h3>Escolher perspectiva</h3><span class="small">livre exploração</span></div>
+      <div class="view-grid">
+        <button class="btn active" data-view="outside">Exterior</button><button class="btn" data-view="inside">De dentro</button><button class="btn" data-view="top">De cima</button>
+      </div>
+      <div class="divider"></div>
+      <div class="control-head"><h3>Sólidos de revolução</h3><span class="small">selecione</span></div>
+      <div class="solid-grid">
+        <button class="btn active" data-solid="cone">Cone duplo</button><button class="btn" data-solid="cylinder">Cilindro</button><button class="btn" data-solid="sphere">Esfera</button>
+      </div>
+      <div class="cta-row"><button class="btn" id="planBtn">▱ Planificar sólido</button><button class="btn" id="backModelBtn">Voltar ao 3D</button></div>
+      <div class="lesson-box" style="margin-top:12px">
+        <h4 id="lessonTitle">Desafio de observação</h4>
+        <p id="lessonText">Antes de alterar o plano, observe o cone duplo. Imagine um feixe de lanterna em forma de cone atingindo uma parede. O contorno luminoso depende da inclinação da superfície que intercepta o feixe.</p>
+      </div>
+      <p class="small" style="margin:10px 2px 0;line-height:1.4">Dica VR: aponte o laser e acione o gatilho em um botão. Para ajuste direto, selecione a lâmina e mova o joystick esquerdo; os botões também funcionam. No computador, use o painel e as setas.</p>
+    </aside>
+    <div class="bottom-hint" id="bottomHint"><b>Experimente:</b> arraste a inclinação de 0° até 80°. Observe a curva colorida e localize o ponto em que o plano fica paralelo a uma geratriz do cone.</div>
+  </div>
+
+  <div class="modal" id="quizModal" role="dialog" aria-modal="true" aria-labelledby="quizTitle">
+    <div class="modal-card">
+      <div class="eyebrow">Missão final · avaliação formativa</div>
+      <h2 id="quizTitle">Você consegue ler um corte?</h2>
+      <p>Responda com base no que observou no laboratório. São cinco questões. Ao finalizar, você receberá a pontuação e uma devolutiva.</p>
+      <form id="quizForm">
+        <div class="question"><h3>1. Um plano horizontal, perpendicular ao eixo do cone, produz:</h3>
+          <label class="option"><input type="radio" name="q1" value="a"> Uma parábola</label><label class="option"><input type="radio" name="q1" value="b"> Uma circunferência</label><label class="option"><input type="radio" name="q1" value="c"> Uma hipérbole</label></div>
+        <div class="question"><h3>2. Quando o plano é paralelo a uma geratriz do cone, a seção é:</h3>
+          <label class="option"><input type="radio" name="q2" value="a"> Elipse</label><label class="option"><input type="radio" name="q2" value="b"> Circunferência</label><label class="option"><input type="radio" name="q2" value="c"> Parábola</label></div>
+        <div class="question"><h3>3. Em relação à inclinação crítica, um plano mais inclinado (mais próximo do eixo) gera:</h3>
+          <label class="option"><input type="radio" name="q3" value="a"> Hipérbole</label><label class="option"><input type="radio" name="q3" value="b"> Circunferência</label><label class="option"><input type="radio" name="q3" value="c"> Elipse</label></div>
+        <div class="question"><h3>4. A superfície lateral de um cone, quando planificada, forma:</h3>
+          <label class="option"><input type="radio" name="q4" value="a"> Um retângulo</label><label class="option"><input type="radio" name="q4" value="b"> Um setor circular</label><label class="option"><input type="radio" name="q4" value="c"> Um círculo completo</label></div>
+        <div class="question"><h3>5. É possível planificar uma esfera em uma superfície plana sem deformações?</h3>
+          <label class="option"><input type="radio" name="q5" value="a"> Sim, em um único círculo</label><label class="option"><input type="radio" name="q5" value="b"> Sim, em um retângulo</label><label class="option"><input type="radio" name="q5" value="c"> Não; qualquer representação plana exige cortes e/ou deformações</label></div>
+        <div class="cta-row"><button type="button" class="btn" id="closeQuizBtn">Fechar</button><button type="submit" class="btn primary">Corrigir respostas</button></div>
+      </form>
+      <div class="quiz-result" id="quizResult"><strong id="quizScore">0/5</strong><p id="quizFeedback"></p><button type="button" class="btn primary" id="retryQuizBtn">Refazer quiz</button></div>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+  (() => {
+    'use strict';
+    const H = 2.6;
+    const R = 1.55;
+    const K = R / H;
+    const CRITICAL = Math.atan(1 / K) * 180 / Math.PI;
+    const state = { angle: 0, offset: 1.05, solid: 'cone', view: 'outside', plan: false, grabMode: false, stage: 0, completed: new Set(), quizPassed: false };
+    const $ = (id) => document.getElementById(id);
+    const scene = document.querySelector('a-scene');
+
+    function showToast(message) {
+      const el = $('toast'); el.textContent = message; el.classList.add('show');
+      clearTimeout(showToast.timer); showToast.timer = setTimeout(() => el.classList.remove('show'), 2200);
+    }
+    function classify(angle) {
+      if (angle < 0.6) return 'circle';
+      if (Math.abs(angle - CRITICAL) <= 0.65) return 'parabola';
+      return angle < CRITICAL ? 'ellipse' : 'hyperbola';
+    }
+    const META = {
+      circle: { name:'Circunferência', color:'#53e4ff', tag:'CORTE 01', copy:'Plano perpendicular ao eixo do cone: a interseção é uma circunferência. Todos os pontos estão à mesma distância do centro.', formula:'α = 0° · plano perpendicular ao eixo' },
+      ellipse: { name:'Elipse', color:'#53f0c3', tag:'CORTE 02', copy:'O plano corta apenas uma das folhas do cone e não é paralelo a uma geratriz. A curva resultante é fechada.', formula:`0° < α < ${CRITICAL.toFixed(1).replace('.', ',')}° · curva fechada` },
+      parabola: { name:'Parábola', color:'#ffcc73', tag:'CORTE 03', copy:'O plano fica paralelo a uma geratriz do cone. A seção é aberta e possui uma única ramificação.', formula:`α ≈ ${CRITICAL.toFixed(1).replace('.', ',')}° · plano paralelo à geratriz` },
+      hyperbola: { name:'Hipérbole', color:'#ff72b6', tag:'CORTE 04', copy:'O plano atravessa as duas folhas do cone. A interseção possui dois ramos separados.', formula:`α > ${CRITICAL.toFixed(1).replace('.', ',')}° · duas folhas interceptadas` }
+    };
+    const EQUATIONS = {
+      circle: ['Circunferência', 'x² + y² = r²', 'Forma canônica com centro na origem e raio r.'],
+      ellipse: ['Elipse', 'x²/a² + y²/b² = 1', 'Forma canônica com semieixos a e b; a curva é fechada.'],
+      parabola: ['Parábola', 'x² = 4py  (ou  y² = 4px)', 'Forma canônica; p representa a distância do vértice ao foco.'],
+      hyperbola: ['Hipérbole', 'x²/a² − y²/b² = 1', 'Forma canônica com dois ramos; a subtração distingue a hipérbole da elipse.']
+    };
+
+    AFRAME.registerComponent('grid-floor', {
+      schema: { size: {default:16}, divisions: {default:32} },
+      init() {
+        const size = this.data.size, div = this.data.divisions, half = size / 2;
+        const vertices = [];
+        for (let i = 0; i <= div; i++) {
+          const p = -half + size * i / div;
+          vertices.push(-half, 0, p, half, 0, p, p, 0, -half, p, 0, half);
+        }
+        const geom = new THREE.BufferGeometry(); geom.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        const mat = new THREE.LineBasicMaterial({ color: 0x2b5b78, transparent: true, opacity: .42 });
+        const lines = new THREE.LineSegments(geom, mat); lines.position.y = .015; this.el.object3D.add(lines);
+        const axes = new THREE.AxesHelper(2.5); axes.position.set(0,.025,0); axes.material.transparent = true; axes.material.opacity = .25; this.el.object3D.add(axes);
+      }
+    });
+
+    AFRAME.registerComponent('plane-surface', {
+      schema: { angle: {default:0}, offset: {default:1.05} },
+      init() {
+        const geom = new THREE.PlaneGeometry(5.8, 5.8);
+        const mat = new THREE.MeshStandardMaterial({ color:0x67eaff, transparent:true, opacity:.18, roughness:.18, metalness:.16, side:THREE.DoubleSide, depthWrite:false });
+        this.mesh = new THREE.Mesh(geom, mat); this.mesh.renderOrder = 2; this.el.object3D.add(this.mesh);
+        const edge = new THREE.LineSegments(new THREE.EdgesGeometry(geom), new THREE.LineBasicMaterial({color:0x8befff, transparent:true, opacity:.85}));
+        edge.position.z = .006; this.el.object3D.add(edge);
+        this.draw();
+      },
+      update() { if (this.mesh) this.draw(); },
+      draw() {
+        const a = THREE.MathUtils.degToRad(this.data.angle), m = Math.tan(a), den = Math.sqrt(1 + m*m);
+        const e1 = new THREE.Vector3(1/den, m/den, 0), e2 = new THREE.Vector3(0,0,1), n = new THREE.Vector3().crossVectors(e1,e2).normalize();
+        const basis = new THREE.Matrix4().makeBasis(e1,e2,n);
+        this.el.object3D.position.set(0, this.data.offset, 0);
+        this.el.object3D.quaternion.setFromRotationMatrix(basis);
+      }
+    });
+
+    AFRAME.registerComponent('conic-curve', {
+      schema: { angle: {default:0}, offset: {default:1.05} },
+      init() { this.group = new THREE.Group(); this.el.object3D.add(this.group); this.draw(); },
+      update() { if (this.group) this.draw(); },
+      draw() {
+        while (this.group.children.length) {
+          const child = this.group.children.pop();
+          child.geometry?.dispose(); if (Array.isArray(child.material)) child.material.forEach(m=>m.dispose()); else child.material?.dispose();
+        }
+        const a = THREE.MathUtils.degToRad(this.data.angle), m = Math.tan(a), d = this.data.offset, den = Math.sqrt(1+m*m);
+        const aa = (K*K*m*m - 1) / (1+m*m), bb = 2*K*K*d*m/den, cc = K*K*d*d;
+        let uMin = -4.8, uMax = 4.8;
+        if (m > 1e-5) { uMin = Math.max(uMin, (-H-d)*den/m); uMax = Math.min(uMax, (H-d)*den/m); }
+        const q = u => aa*u*u + bb*u + cc;
+        let intervals = [];
+        const disc = bb*bb - 4*aa*cc;
+        if (Math.abs(aa) < 1e-5) {
+          const root = Math.abs(bb) > 1e-8 ? -cc/bb : 0;
+          intervals = bb >= 0 ? [[Math.max(uMin,root),uMax]] : [[uMin,Math.min(uMax,root)]];
+        } else if (disc >= 0) {
+          const s = Math.sqrt(disc), r1 = (-bb-s)/(2*aa), r2 = (-bb+s)/(2*aa), lo = Math.min(r1,r2), hi = Math.max(r1,r2);
+          intervals = aa < 0 ? [[Math.max(uMin,lo),Math.min(uMax,hi)]] : [[uMin,Math.min(uMax,lo)],[Math.max(uMin,hi),uMax]];
+        } else if (aa > 0) { intervals = [[uMin,uMax]]; }
+        const type = classify(this.data.angle), color = new THREE.Color(META[type].color);
+        let made = 0;
+        for (const [start,end] of intervals) {
+          if (!Number.isFinite(start) || !Number.isFinite(end) || end-start < .015) continue;
+          for (const sign of [-1,1]) {
+            const points = [], count = 160;
+            for (let i=0;i<=count;i++) {
+              const u = start + (end-start)*i/count, rad = q(u);
+              if (rad < -0.0008) continue;
+              const x = u/den, y = d + m*x, z = sign*Math.sqrt(Math.max(0,rad));
+              if (Math.abs(y) <= H + .02) points.push(new THREE.Vector3(x,y,z));
+            }
+            if (points.length > 2) {
+              const path = new THREE.CatmullRomCurve3(points, false, 'centripetal');
+              const tube = new THREE.Mesh(new THREE.TubeGeometry(path, Math.max(80,points.length), .019, 7, false), new THREE.MeshBasicMaterial({color, transparent:true, opacity:1}));
+              tube.renderOrder = 4; this.group.add(tube); made++;
+            }
+          }
+        }
+        // Um pequeno marcador luminoso acompanha o centro aproximado do corte.
+        const label = document.querySelector('#cutLabel');
+        if (label) label.setAttribute('position', `${Math.min(2.0, .7 + this.data.angle/55)} ${d} 0.15`);
+      }
+    });
+
+    function addShape(group, shape, material, x, y, z=0) {
+      const mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape, 48), material);
+      mesh.position.set(x,y,z); mesh.renderOrder = 4; group.add(mesh); return mesh;
+    }
+    function addCircleShape(group, radius, x, y, material) {
+      const s = new THREE.Shape(); s.absarc(0,0,radius,0,Math.PI*2,false); return addShape(group,s,material,x,y,.02);
+    }
+    AFRAME.registerComponent('net-display', {
+      schema: {solid:{default:'cone'}},
+      init() { this.build(); },
+      update() { if(this.group) this.build(); },
+      build() {
+        if (this.group) { this.el.object3D.remove(this.group); this.group.traverse(o=>{o.geometry?.dispose(); if(o.material) o.material.dispose?.();}); }
+        const g = new THREE.Group(); this.group = g; this.el.object3D.add(g);
+        const fill1 = new THREE.MeshBasicMaterial({color:0x38cce7, transparent:true, opacity:.34, side:THREE.DoubleSide, depthWrite:false});
+        const fill2 = new THREE.MeshBasicMaterial({color:0x58e2c1, transparent:true, opacity:.34, side:THREE.DoubleSide, depthWrite:false});
+        const fill3 = new THREE.MeshBasicMaterial({color:0x9aaeff, transparent:true, opacity:.34, side:THREE.DoubleSide, depthWrite:false});
+        const lineMat = new THREE.LineBasicMaterial({color:0xb7f6ff, transparent:true, opacity:.95});
+        const addBorder = (points,x,y) => { const geo=new THREE.BufferGeometry().setFromPoints(points.map(p=>new THREE.Vector3(p[0]+x,p[1]+y,.045))); const line=new THREE.Line(geo,lineMat); line.renderOrder=5; g.add(line); };
+        if (this.data.solid === 'cone') {
+          const slant=Math.sqrt(H*H+R*R), theta=2*Math.PI*R/slant, sh=new THREE.Shape();
+          sh.moveTo(0,0); sh.lineTo(slant*.47,0); sh.absarc(0,0,slant*.47,0,theta,false); sh.lineTo(0,0);
+          addShape(g,sh,fill1,-.85,-.02);
+          addCircleShape(g,R*.47,1.58,-.02,fill2);
+          const pts=[]; for(let i=0;i<=80;i++){const t=theta*i/80;pts.push([slant*.47*Math.cos(t),slant*.47*Math.sin(t)]);} addBorder(pts,-.85,-.02);
+          const circ=[];for(let i=0;i<=80;i++){const t=2*Math.PI*i/80;circ.push([R*.47*Math.cos(t),R*.47*Math.sin(t)]);}addBorder(circ,1.58,-.02);
+        } else if (this.data.solid === 'cylinder') {
+          const w=2.25,h=1.15, sh=new THREE.Shape(); sh.moveTo(-w/2,-h/2);sh.lineTo(w/2,-h/2);sh.lineTo(w/2,h/2);sh.lineTo(-w/2,h/2);sh.closePath(); addShape(g,sh,fill2,-.05,0);
+          addCircleShape(g,.55,-1.58,0,fill1); addCircleShape(g,.55,1.48,0,fill1);
+          addBorder([[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2],[-w/2,-h/2]],-.05,0);
+          for(const cx of [-1.58,1.48]){const p=[];for(let i=0;i<=80;i++){const t=2*Math.PI*i/80;p.push([.55*Math.cos(t),.55*Math.sin(t)]);}addBorder(p,cx,0);}
+        } else {
+          // Oito gomos ilustram a aproximação de uma superfície esférica; não é uma planificação exata.
+          for(let j=0;j<8;j++){
+            const cx=(j-3.5)*.39, sh=new THREE.Shape();
+            const pts=[]; for(let i=0;i<=40;i++){const t=-Math.PI/2+Math.PI*i/40;const width=.18*Math.cos(t);pts.push([width,1.05*Math.sin(t)]);}
+            sh.moveTo(pts[0][0],pts[0][1]); for(let i=1;i<pts.length;i++) sh.lineTo(pts[i][0],pts[i][1]);
+            for(let i=pts.length-1;i>=0;i--) sh.lineTo(-pts[i][0],pts[i][1]); sh.closePath(); addShape(g,sh, j%2?fill3:fill2,cx,0);
+          }
+        }
+      }
+    });
+
+    AFRAME.registerComponent('ui-action', {
+      schema: {action:{type:'string'}},
+      init() { this.el.addEventListener('click', () => window.CONE_LAB?.action(this.data.action)); }
+    });
+    // Seleção da lâmina + ajuste pelo eixo analógico do controle esquerdo.
+    // O mapeamento é lido via Gamepad API; controles sem eixos continuam usando os botões do console.
+    AFRAME.registerComponent('plane-controller-adjust', {
+      init() { this.lastAdjust = 0; },
+      tick(time) {
+        if (!state.grabMode || state.solid !== 'cone' || state.plan || !navigator.getGamepads || time-this.lastAdjust < 55) return;
+        let pads; try { pads = navigator.getGamepads(); } catch (_) { return; }
+        const pad = Array.from(pads || []).find(g => g && g.connected && g.axes && g.axes.length >= 2);
+        if (!pad) return;
+        const axes = pad.axes.length >= 4 ? pad.axes.slice(-2) : pad.axes.slice(0,2);
+        const x = Number(axes[0]) || 0, y = Number(axes[1]) || 0;
+        if (Math.abs(x) < .18 && Math.abs(y) < .18) return;
+        this.lastAdjust = time;
+        if (Math.abs(x) >= .18) setAngle(state.angle + x * 1.15);
+        if (Math.abs(y) >= .18) setOffset(state.offset - y * .025);
+      }
+    });
+
+    function updateModel() {
+      const angle = Number(state.angle.toFixed(1)), offset = Number(state.offset.toFixed(2));
+      $('angleRange').value = angle; $('angleValue').textContent = `${angle.toLocaleString('pt-BR')}°`;
+      $('offsetRange').value = offset; $('offsetValue').textContent = offset.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+      const type = classify(angle), meta = META[type];
+      $('className').textContent = meta.name; $('classTag').textContent = meta.tag; $('classCopy').textContent = meta.copy; $('classFormula').textContent = meta.formula;
+      $('className').style.color = meta.color; $('classTag').style.color = meta.color;
+      const eq = EQUATIONS[type]; $('equationTitle').textContent = `Pós-VR · ${eq[0]}`; $('equationText').textContent = eq[1]; $('equationMeaning').textContent = eq[2] + ' Esta é a forma canônica no plano; translações e rotações mudam a escrita, não a família geométrica.';
+      $('curveLabel3d').setAttribute('value', meta.name.toUpperCase()); $('curveLabel3d').setAttribute('color', meta.color);
+      const plane = document.querySelector('#cutPlane'), curve = document.querySelector('#cutCurve');
+      if (plane?.components['plane-surface']) plane.components['plane-surface'].updateGeometry?.(angle, offset);
+      plane?.setAttribute('plane-surface', {angle, offset}); curve?.setAttribute('conic-curve',{angle,offset});
+      document.querySelectorAll('[data-preset]').forEach(b=>b.classList.toggle('active', b.dataset.preset===type));
+      $('lessonTitle').textContent = state.stage===2 ? 'Observe a mudança de família' : (state.solid==='cone' ? 'Desafio de observação' : 'Superfície de revolução');
+      if(state.solid==='cone') $('lessonText').textContent = `${meta.copy} Ajuste o ângulo em pequenos passos e procure a transição próxima de ${CRITICAL.toFixed(1).replace('.',',')}°.`;
+      else if(state.solid==='cylinder') $('lessonText').textContent = 'Um retângulo girando em torno de um de seus lados gera um cilindro. Compare a superfície lateral curva com as duas bases circulares.';
+      else $('lessonText').textContent = 'Um semicírculo girando em torno de seu diâmetro gera uma esfera. Observe a simetria em torno do eixo de rotação.';
+    }
+    function setAngle(v) { state.angle = Math.max(0,Math.min(80,Number(v))); updateModel(); }
+    function setOffset(v) { state.offset = Math.max(.55,Math.min(1.65,Number(v))); updateModel(); }
+    function setView(view) {
+      state.view = view;
+      const cam=$('mainCamera');
+      if(view==='inside') { cam.setAttribute('position','0 1.1 0.12'); cam.setAttribute('rotation','0 0 0'); }
+      else if(view==='top') { cam.setAttribute('position','0 7.2 0.01'); cam.setAttribute('rotation','-90 0 0'); }
+      else { cam.setAttribute('position','0 1.6 6'); cam.setAttribute('rotation','0 0 0'); }
+      document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+      showToast(view==='inside'?'Visão interna ativada':view==='top'?'Visão superior ativada':'Visão externa ativada');
+    }
+    function setSolid(solid) {
+      state.solid=solid; state.plan=false; state.grabMode=false; $('netRoot').setAttribute('visible',false); $('modelRoot').setAttribute('visible',true); $('planBtn').textContent='▱ Planificar sólido';
+      $('coneGroup').setAttribute('visible',solid==='cone'); $('cylinderSolid').setAttribute('visible',solid==='cylinder'); $('sphereSolid').setAttribute('visible',solid==='sphere');
+      document.querySelectorAll('[data-solid]').forEach(b=>b.classList.toggle('active',b.dataset.solid===solid));
+      updateModel();
+      if(solid!=='cone') showToast(solid==='cylinder'?'Cilindro: retângulo em rotação':'Esfera: semicírculo em rotação');
+    }
+    function togglePlan() {
+      state.plan=!state.plan;
+      if(state.plan) {
+        $('modelRoot').setAttribute('visible',false); $('netRoot').setAttribute('visible',true); $('netRoot').setAttribute('net-display',`solid: ${state.solid}`);
+        $('netHeading').setAttribute('value',`PLANIFICAÇÃO · ${state.solid==='cone'?'CONE':state.solid==='cylinder'?'CILINDRO':'ESFERA'}`);
+        $('netNote').setAttribute('value',state.solid==='cone'?'A lateral é um setor circular; a base é um círculo. As medidas do setor dependem da geratriz.':state.solid==='cylinder'?'A lateral é um retângulo; as duas bases são círculos congruentes.':'Representação por gomos: uma esfera não pode ser planificada exatamente sem cortes e deformações.');
+        $('planBtn').textContent='▱ Ocultar planificação';
+        showToast('Planificação aberta. Observe as partes da superfície.');
+      } else {
+        $('netRoot').setAttribute('visible',false); $('modelRoot').setAttribute('visible',true); $('planBtn').textContent='▱ Planificar sólido';
+      }
+    }
+    function setPreset(p) {
+      const vals={circle:0,ellipse:35,parabola:CRITICAL,hyperbola:72}; setAngle(vals[p]??0); setSolid('cone');
+      showToast(`Plano ajustado: ${META[p].name.toLowerCase()}`);
+    }
+    function action(name) {
+      if(name==='angleDown') setAngle(state.angle-2); if(name==='angleUp') setAngle(state.angle+2);
+      if(name==='offsetDown') setOffset(state.offset-.1); if(name==='offsetUp') setOffset(state.offset+.1);
+      if(['circle','ellipse','parabola','hyperbola'].includes(name)) setPreset(name);
+      if(name==='viewInside') setView('inside'); if(name==='viewTop') setView('top'); if(name==='viewOutside') setView('outside');
+      if(name==='plan') togglePlan(); if(name==='quiz') openQuiz();
+      if(name==='grab') { if(state.solid!=='cone' || state.plan) { showToast('Selecione o cone e retorne ao modelo para ajustar a lâmina.'); } else { state.grabMode=!state.grabMode; showToast(state.grabMode?'Lâmina selecionada: use o joystick esquerdo para inclinar e elevar.':'Lâmina liberada.'); } }
+    }
+    window.CONE_LAB = { action };
+
+    $('angleRange').addEventListener('input',e=>{setAngle(e.target.value);setSolid('cone');});
+    $('angleRange').addEventListener('change',e=>{const marks=[0,35,CRITICAL,72];const nearest=marks.reduce((best,v)=>Math.abs(v-state.angle)<Math.abs(best-state.angle)?v:best,marks[0]);if(Math.abs(nearest-state.angle)<=1.1){setAngle(nearest);showToast('Encaixe magnético: ângulo notável.');}});
+    $('offsetRange').addEventListener('input',e=>setOffset(e.target.value));
+    document.querySelectorAll('[data-preset]').forEach(b=>b.addEventListener('click',()=>setPreset(b.dataset.preset)));
+    document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
+    document.querySelectorAll('[data-solid]').forEach(b=>b.addEventListener('click',()=>setSolid(b.dataset.solid)));
+    $('planBtn').addEventListener('click',togglePlan); $('backModelBtn').addEventListener('click',()=>{if(state.plan)togglePlan();});
+    $('resetBtn').addEventListener('click',()=>{setAngle(0);setOffset(1.05);setSolid('cone');setView('outside');if(state.plan)togglePlan();showToast('Laboratório reiniciado.');});
+    $('vrBtn').addEventListener('click',async()=>{
+      try { if(scene.hasLoaded && scene.enterVR) await scene.enterVR(); else showToast('A cena ainda está carregando.'); }
+      catch(e){ showToast('VR indisponível: abra a página em HTTPS e em um navegador compatível com WebXR.'); }
+    });
+    $('panelToggle').addEventListener('click',()=>$('mainPanel').classList.toggle('collapsed'));
+
+    const STAGES = [
+      {pill:'ETAPA 1 · EXPLORAR',title:'Orientação e observação',text:'Observe o cone duplo. Relacione sua forma com um feixe de lanterna cônico projetado sobre uma parede. O que acontece quando a superfície muda de inclinação?'},
+      {pill:'ETAPA 2 · EXPERIMENTAR',title:'Explore os cortes',text:'Teste os quatro cortes usando os atalhos e o controle de inclinação. Identifique qual parte do cone é interceptada e se a curva é fechada ou aberta.'},
+      {pill:'ETAPA 3 · COMPARAR',title:'Transição das cônicas',text:'Varie o ângulo lentamente. Compare a elipse com a parábola e a hipérbole. A parábola ocorre quando o plano fica paralelo a uma geratriz.'},
+      {pill:'ETAPA 4 · CONSTRUIR',title:'Sólidos e planificações',text:'Alterne entre cone, cilindro e esfera. Abra a planificação e associe cada sólido à superfície geradora e às figuras planas que a compõem.'},
+      {pill:'ETAPA 5 · AVALIAR',title:'Missão final · Quiz',text:'Faça o quiz para verificar sua leitura geométrica. Use as evidências visuais do laboratório para justificar suas respostas.'}
+    ];
+    function renderStages() {
+      $('stagePill').textContent=STAGES[state.stage].pill; $('lessonTitle').textContent=STAGES[state.stage].title; $('lessonText').textContent=STAGES[state.stage].text;
+      $('progressText').textContent=`${state.completed.size} de 5 concluídas`; $('progressBar').style.width=`${state.completed.size/5*100}%`;
+      document.querySelectorAll('.trail-item').forEach((b,i)=>{b.classList.toggle('current',i===state.stage);b.classList.toggle('done',state.completed.has(i));});
+      $('nextStageBtn').textContent=state.stage===4?'Abrir quiz →':'Próxima etapa →';
+    }
+    function goStage(i) {
+      state.stage=Math.max(0,Math.min(4,i)); renderStages();
+      if(state.stage===1||state.stage===2){setSolid('cone');if(state.plan)togglePlan();}
+      if(state.stage===3){setSolid('cone');}
+      if(state.stage===4) showToast('Missão final: responda ao quiz de cinco questões.');
+    }
+    document.querySelectorAll('.trail-item').forEach(b=>b.addEventListener('click',()=>goStage(Number(b.dataset.stage))));
+    $('completeStageBtn').addEventListener('click',()=>{state.completed.add(state.stage);renderStages();showToast('Etapa marcada como concluída.');});
+    $('nextStageBtn').addEventListener('click',()=>{if(state.stage===4)openQuiz();else {state.completed.add(state.stage);goStage(state.stage+1);renderStages();}});
+
+    function openQuiz(){ $('quizModal').classList.add('open'); $('quizResult').style.display='none'; $('quizForm').style.display='block'; }
+    function closeQuiz(){ $('quizModal').classList.remove('open'); }
+    $('closeQuizBtn').addEventListener('click',closeQuiz);
+    $('quizForm').addEventListener('submit',e=>{
+      e.preventDefault(); const key={q1:'b',q2:'c',q3:'a',q4:'b',q5:'c'}; let score=0,answered=0;
+      for(const [q,answer] of Object.entries(key)){const chosen=document.querySelector(`input[name="${q}"]:checked`);if(chosen){answered++;if(chosen.value===answer)score++;}}
+      if(answered<5){showToast('Responda às cinco questões antes de corrigir.');return;}
+      $('quizScore').textContent=`${score}/5 · ${Math.round(score/5*100)}%`;
+      $('quizFeedback').textContent=score===5?'Excelente! Você relacionou corretamente a inclinação do plano, a curva de interseção e a planificação dos sólidos.':score>=3?'Bom trabalho! Revise os cortes próximos à geratriz e retorne ao modelo para comparar as curvas que geraram dúvidas.':'Retorne ao laboratório e experimente novamente os quatro ângulos. Observe especialmente a posição do plano em relação às geratrizes do cone.';
+      $('quizForm').style.display='none';$('quizResult').style.display='block';
+      state.completed.add(4);state.quizPassed=score>=3;renderStages();
+    });
+    $('retryQuizBtn').addEventListener('click',()=>{$('quizForm').reset();$('quizForm').style.display='block';$('quizResult').style.display='none';});
+
+    // Inicialização tardia garante que os componentes A-Frame estejam montados.
+    scene.addEventListener('loaded',()=>{ updateModel(); renderStages(); });
+    window.addEventListener('keydown',e=>{
+      if(e.key==='Escape' && $('quizModal').classList.contains('open')) closeQuiz();
+      if(e.key==='ArrowRight')setAngle(state.angle+1); if(e.key==='ArrowLeft')setAngle(state.angle-1); if(e.key==='ArrowUp')setOffset(state.offset+.05); if(e.key==='ArrowDown')setOffset(state.offset-.05);
+    });
+    updateModel(); renderStages();
+  })();
+  </script>
+</body>
+</html>
